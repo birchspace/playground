@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: app
+    environment:
+      NODE_ENV: production
+      DISPLAY: :99
+      CHROMIUM_PATH: /usr/bin/chromium-browser
+      LOG_DIR: /data/logs/
+      CONFIG_PATH: /data/config.json
+      USER_DATA_DIRECTORY: /data/userdata/
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
+    depends_on:
+      - redis

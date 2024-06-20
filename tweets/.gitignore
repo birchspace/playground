@@ -1,0 +1,10 @@
+!.git*
+
+dist/
+node_modules/
+
+package.tgz
+
+config/userdata/
+
+.env

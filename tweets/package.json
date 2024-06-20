@@ -1,0 +1,44 @@
+{
+  "name": "twitter",
+  "version": "0.0.1",
+  "description": "twitter",
+  "keywords": [
+    "twitter"
+  ],
+  "license": "Unlicense",
+  "author": "birch",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": "dist/bin.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx src/bin.ts",
+    "format": "prettier --write --cache .",
+    "lint": "eslint",
+    "prepack": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@book000/node-utils": "^1.13.80",
+    "@book000/twitterts": "^0.62.34",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.3.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.12.13",
+    "@types/yargs": "^17.0.32",
+    "eslint": "^9.3.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.5",
+    "ts-jest": "^29.1.4",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.11.0"
+  }
+}
