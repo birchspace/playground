@@ -56,24 +56,28 @@ async function main() {
 
     const filename = "./address.txt"
 
-    fs.readFile(filename, "utf8", async (err, data) => {
-        if (err) {
-            console.error("Error reading the file:", err);
-            return;
-        }
+    await new Promise((resolve, reject) => {
+        fs.readFile(filename, "utf8", async (err, data) => {
+            if (err) {
+                console.error("Error reading the file:", err);
+                return reject(err);
+            }
 
-        const keys = data
-            .trim()
-            .split("\n")
-            .map((key) => key.trim());
+            const keys = data
+                .trim()
+                .split("\n")
+                .map((key) => key.trim());
 
-        for (const key of keys) {
-            await run(key, browser);
-            await sleep(2000)
-        }
+            for (const key of keys) {
+                await run(key, browser);
+                await sleep(2000);
+            }
 
-        resolve();
+            resolve();
+        });
     });
+
+    browser.close()
 
 }
 
