@@ -5,8 +5,11 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function run(address, claimPage) {
-    console.log(address, "address");
+async function run(address, browser) {
+    const claimPage = await newPage(browser)
+
+    await claimPage.goto('https://vanguard.xai.games/')
+
     const inputElement = await claimPage.waitForSelector('#root > main > div:nth-child(3) > label > div > input');
 
     await inputElement.click({ clickCount: 3 });
@@ -14,14 +17,12 @@ async function run(address, claimPage) {
 
     await inputElement.type(address);
 
-    await sleep(2000)
+    await sleep(3000)
 
     while (true) {
         try {
-
-            const claimButtons = await claimPage.$$('button');
-
             const filteredButtons = [];
+            const claimButtons = await claimPage.$$('button');
             for (const button of claimButtons) {
                 const text = await claimPage.evaluate(el => el.innerText.trim(), button);
                 if (text === 'Claim') {
@@ -46,14 +47,12 @@ async function run(address, claimPage) {
             break;
         }
     }
+
+    claimPage.close()
 }
 async function main() {
 
     const browser = await createBrowser(600, 1000)
-
-    const claimPage = await newPage(browser)
-
-    await claimPage.goto('https://vanguard.xai.games/')
 
     const filename = "./address.txt"
 
@@ -69,9 +68,11 @@ async function main() {
             .map((key) => key.trim());
 
         for (const key of keys) {
-            await run(key, claimPage);
+            await run(key, browser);
+            await sleep(2000)
         }
 
+        resolve();
     });
 
 }
