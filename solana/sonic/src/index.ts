@@ -1,13 +1,23 @@
+import fs from "fs"
 import bs58 from "bs58"
-import dotenv from "dotenv"
+import task from 'tasuku'
 import * as  web3 from "@solana/web3.js"
 
 import type { PublicKey, Keypair } from "@solana/web3.js";
-// Load environment variables from .env file
-dotenv.config();
 
-const RPC = process.env.RPC!
-const KEY = process.env.KEY!
+export const TITLE_TEXT = `
+                    .__        
+  __________   ____ |__| ____  
+ /  ___/  _ \ /    \|  |/ ___\ 
+ \___ (  <_> )   |  \  \  \___ 
+/____  >____/|___|  /__|\___  >
+     \/           \/        \/ 
+`;
+
+
+console.log(TITLE_TEXT);
+
+const RPC = "https://devnet.sonic.game"
 
 const connection = new web3.Connection(
     RPC, 'finalized'
@@ -17,19 +27,15 @@ const connection = new web3.Connection(
 //lamports
 const sol = 1000000000;
 // Set the minimum and maximum amount of SOL to be transferred in each transaction
-const give_next = 0.003 * sol
+const give_next = 0.001 * sol
 const minAmount = Math.floor(give_next * 1.0);
 const maxAmount = Math.floor(give_next * 1.1);
 
-function sleep(ms: number) {
-    return new Promise(resolve => {
-        setTimeout(resolve, ms);
-    });
-}
+export const sleep = (ms = 1000 * Math.random() + 900) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
 const getBalance = async (sourcePublicKey: PublicKey) => {
     const balance = await connection.getBalance(sourcePublicKey);
-    console.log(`${sourcePublicKey.toString()} sol balance:`, balance / sol);
     return balance;
 };
 
@@ -75,23 +81,49 @@ const sendRandomAmount = async (fromKeypair: Keypair, toPublicKey: string) => {
     };
 }
 
+async function main(times: number = 100) {
 
-const sourceKeypair = web3.Keypair.fromSecretKey(bs58.decode(KEY))
+    let keys: string[] = []
 
-async function main(limit: number) {
-    // 接收地址
-    const toAddress = ""
+    await new Promise<void>((resolve, reject) => {
+        fs.readFile("./keys.txt", "utf8", async (err, data) => {
+            if (err) {
+                console.error("Error reading the file:", err);
+                return reject(err);
+            }
 
-    for (let i = 0; i < limit; i++) {
-        try {
-            await sendRandomAmount(sourceKeypair, toAddress);
-        } catch (err) {
-            const error = err as Error
-            console.error(`${sourceKeypair.publicKey.toString()} Failed to transfer to ${toAddress}: ${error.message}`);
-        }
+            keys = data
+                .trim()
+                .split("\n")
+                .map((key) => key.trim());
+
+            resolve()
+        });
+
+    });
+
+    for (const key of keys) {
+        const keypair = web3.Keypair.fromSecretKey(bs58.decode(key))
+
+        await task(`${keypair.publicKey.toString()} has been completed 0`, async ({ setTitle }) => {
+
+            for (let i = 0; i < times; i++) {
+                let receiverKey: string
+                do {
+                    receiverKey = keys[Math.floor(Math.random() * keys.length)]
+                } while (receiverKey === key);
+
+                const receiverKeypair = web3.Keypair.fromSecretKey(bs58.decode(receiverKey));
+
+                const nestedTask = await task(`-> ${receiverKeypair.publicKey.toString()}`, async () => {
+                    await sendRandomAmount(keypair, receiverKeypair.publicKey.toString())
+                })
+
+                nestedTask.clear()
+                setTitle(`${keypair.publicKey.toString()} has been completed ${i}`)
+            }
+        })
     }
-
 }
 
-
-main(10)
+main()
