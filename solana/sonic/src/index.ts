@@ -1,93 +1,123 @@
 import fs from "fs"
-import bs58 from "bs58"
+import bs58 from 'bs58'
 import task from 'tasuku'
-import * as  web3 from "@solana/web3.js"
-
-import type { PublicKey, Keypair } from "@solana/web3.js";
-
-export const TITLE_TEXT = `
-                    .__        
-  __________   ____ |__| ____  
- /  ___/  _ \ /    \|  |/ ___\ 
- \___ (  <_> )   |  \  \  \___ 
-/____  >____/|___|  /__|\___  >
-     \/           \/        \/ 
-`;
-
-
-console.log(TITLE_TEXT);
-
-const RPC = "https://devnet.sonic.game"
+import Sonic from "./sonic";
+import web3 from "@solana/web3.js"
 
 const connection = new web3.Connection(
-    RPC, 'finalized'
+    "https://devnet.sonic.game", 'finalized'
 );
 
-// 设置随机转账的sol数量
-//lamports
-const sol = 1000000000;
-// Set the minimum and maximum amount of SOL to be transferred in each transaction
-const give_next = 0.001 * sol
-const minAmount = Math.floor(give_next * 1.0);
-const maxAmount = Math.floor(give_next * 1.1);
+const SOL_LAMPORts = 1000000000;
 
-export const sleep = (ms = 1000 * Math.random() + 900) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
+async function run(key: string, keys: string[], sol: number) {
+    const sonic = new Sonic(key, connection)
 
-const getBalance = async (sourcePublicKey: PublicKey) => {
-    const balance = await connection.getBalance(sourcePublicKey);
-    return balance;
-};
+    const give_next = sol * SOL_LAMPORts
 
-// 发送随机金额
-const sendRandomAmount = async (fromKeypair: Keypair, toPublicKey: string) => {
-    const destinationKey = new web3.PublicKey(toPublicKey);
+    await sonic.init()
 
-    // solToLamports(amountInSOL);   
-    const amountInSOL = Math.floor(Math.random() * (maxAmount - minAmount) + minAmount);
-    const before_bal = await getBalance(fromKeypair.publicKey)
+    await task(`${sonic.keypair.publicKey.toString()}`, async ({ setTitle }) => {
 
-    const balance_num = (before_bal - amountInSOL) / sol
+        let title = `${sonic.keypair.publicKey.toString()}`
 
-    // 如果发送者余额小于0.05，则不发送
-    // Check if the balance is less than 0.05
-    if (balance_num < 0.05) {
-        return {
-            signature: "",
-            amount: amountInSOL,
-            destination: toPublicKey,
-        };
-    }
+        const user = await sonic.status()
 
-    // Create a transaction
-    const transaction = new web3.Transaction().add(
-        web3.SystemProgram.transfer({
-            fromPubkey: fromKeypair.publicKey,
-            toPubkey: destinationKey,
-            lamports: amountInSOL,
-        }))
+        title = title + ":"
 
-    web3.sendAndConfirmTransaction(
-        connection,
-        transaction,
-        [fromKeypair],
-        {
-            skipPreflight: true,
+        setTitle(title)
+
+        if (!user.checked) {
+
+            const checkInTx = await sonic.buildCheckInTx()
+
+            const sendcheckInTx = await sonic.sendTx(connection, checkInTx)
+
+            await sonic.checkInHadnle(sendcheckInTx.txid)
+
+            title = title + " " + "checkIn" + " " + "√"
         }
-    );
 
-    return {
-        amount: amountInSOL,
-        destination: toPublicKey,
-    };
+        if (user.total_transactions < 100) {
+            const times = 110 - user.total_transactions
+            const transactionstask = await task(`transactions has been completed 0`, async ({ setTitle }) => {
+
+                for (let i = 0; i < times; i++) {
+                    let receiverKey: string
+
+                    do {
+                        receiverKey = keys[Math.floor(Math.random() * keys.length)]
+                    } while (receiverKey === key);
+
+                    const receiverKeypair = web3.Keypair.fromSecretKey(bs58.decode(receiverKey));
+
+                    const minAmount = Math.floor(give_next * 1.0);
+                    const maxAmount = Math.floor(give_next * 1.1);
+
+                    const amountInSol = Math.floor(Math.random() * (maxAmount - minAmount) + minAmount);
+
+
+                    const nestedTask = await task(`-> ${receiverKeypair.publicKey.toString()}`, async () => {
+                        await sonic.sendSol(sonic.keypair, receiverKeypair.publicKey.toString(), amountInSol)
+                    })
+
+                    nestedTask.clear()
+
+                    setTitle(`transactions has been completed ${i}`)
+                }
+
+                await sonic.sleep(3000)
+                await sonic.claim()
+            })
+
+            transactionstask.clear()
+
+            title = title + " " + "transactions" + " " + "√"
+            setTitle(title)
+        }
+
+        title = title + " " + "Done"
+        setTitle(title)
+    })
 }
 
-// 默认转账100次
-async function main(times: number = 101) {
+async function ringLottery(key: string, times: number) {
+    const sonic = new Sonic(key, connection)
 
+    await task(`${sonic.keypair.publicKey.toString()} scratch lottery tickets`, async ({ setTitle }) => {
+
+        let title = `${sonic.keypair.publicKey.toString()}`
+        let win = 0
+        let lose = 0
+
+        for (const time of Array.from({ length: times })) {
+
+            const lotteryTx = await sonic.buildLotteryTx()
+
+            const sendLotteryTx = await sonic.sendTx(connection, lotteryTx)
+
+            const draw = await sonic.lotteryDraw(sendLotteryTx.txid)
+
+            const res = await sonic.isLotteryWinner(draw?.block_number)
+
+            if (res?.is === "true") {
+                win += 1
+            }
+
+            if (res?.is === "false") {
+                lose += 1
+            }
+
+            title = `${sonic.keypair.publicKey.toString()} lottery scratching: win ${win} lose ${lose}`;
+
+            setTitle(title)
+        }
+    })
+}
+
+(async function main() {
     let keys: string[] = []
 
-    // 读取keys.txt
     await new Promise<void>((resolve, reject) => {
         fs.readFile("./keys.txt", "utf8", async (err, data) => {
             if (err) {
@@ -95,47 +125,17 @@ async function main(times: number = 101) {
                 return reject(err);
             }
 
-            // 推送到 keys数组
             keys = data
                 .trim()
                 .split("\n")
                 .map((key) => key.trim());
 
-            // 标记结束
             resolve()
         });
 
     });
 
-
-    // 循环数组，for循环可以按顺序异步执行
     for (const key of keys) {
-        // 私钥 --> keypair
-        const keypair = web3.Keypair.fromSecretKey(bs58.decode(key))
-
-        // 为每个key创建一个任务,并且通过 setTitl e更新任务标题
-        await task(`${keypair.publicKey.toString()} has been completed 0`, async ({ setTitle }) => {
-
-            // 任务下的子任务：给随机地址发送随机金额
-            for (let i = 0; i < times; i++) {
-                let receiverKey: string
-                do {
-                    receiverKey = keys[Math.floor(Math.random() * keys.length)]
-                } while (receiverKey === key);
-
-                const receiverKeypair = web3.Keypair.fromSecretKey(bs58.decode(receiverKey));
-
-                // 子任务是嵌套任务，所以需要clear掉
-                const nestedTask = await task(`-> ${receiverKeypair.publicKey.toString()}`, async () => {
-                    await sendRandomAmount(keypair, receiverKeypair.publicKey.toString())
-                })
-
-                nestedTask.clear()
-                // 更新任务标题
-                setTitle(`${keypair.publicKey.toString()} has been completed ${i}`)
-            }
-        })
+        await run(key, keys, 0.1)
     }
-}
-// 因为有默认值，所以不传参调用
-main()
+})()
