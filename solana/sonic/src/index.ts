@@ -19,6 +19,10 @@ async function run(key: string, keys: string[], sol: number) {
 
     await task(`${sonic.keypair.publicKey.toString()}`, async ({ setTitle }) => {
 
+        const balance = await sonic.getBalance()
+
+        setTitle(`${sonic.keypair.publicKey.toString()}: balance is ${balance / SOL_LAMPORts} sol`)
+
         let title = `${sonic.keypair.publicKey.toString()}`
 
         const user = await sonic.status()
@@ -84,6 +88,8 @@ async function run(key: string, keys: string[], sol: number) {
 async function ringLottery(key: string, times: number) {
     const sonic = new Sonic(key, connection)
 
+    await sonic.init()
+
     await task(`${sonic.keypair.publicKey.toString()} scratch lottery tickets`, async ({ setTitle }) => {
 
         let title = `${sonic.keypair.publicKey.toString()}`
@@ -101,7 +107,7 @@ async function ringLottery(key: string, times: number) {
             const res = await sonic.isLotteryWinner(draw?.block_number)
 
             if (res?.is === "true") {
-                win += 1
+                win += res.rewards
             }
 
             if (res?.is === "false") {
@@ -136,6 +142,11 @@ async function ringLottery(key: string, times: number) {
     });
 
     for (const key of keys) {
-        await run(key, keys, 0.1)
+        // 日常任务(私钥，随机转账地址数组，转账金额基准)
+
+        // await run(key, keys, 0.00001)
+
+        // 抽奖（私钥，抽奖次数）
+        await ringLottery(key, 100)
     }
 })()

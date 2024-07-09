@@ -80,6 +80,9 @@ class Sonic {
         const message = await this.challenge()
         const signature = this.generateSignature(message)
 
+        console.log("Get authorize...");
+
+
         const authorizeApi = axios.create({
             baseURL: `https://odyssey-api.sonic.game/auth/sonic/authorize`,
             headers: {
